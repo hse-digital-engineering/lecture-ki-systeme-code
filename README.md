@@ -13,3 +13,4 @@ Chapters:
 
 - [Experiment Tracking](experiment-tracking/README.md)
 - [Monitoring and Observation](monitoring-observation/README.md)
+- [Agents](agents/README.md)

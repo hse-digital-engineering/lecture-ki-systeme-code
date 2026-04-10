@@ -1,0 +1,13 @@
+[project]
+name = "litter-detector"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "ultralytics>=8.0",
+    "opencv-python-headless>=4.9",
+    "eclipse-zenoh>=1.7.2",
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",
+    "opentelemetry-semantic-conventions>=0.45",
+    "numpy>=1.26",
+]

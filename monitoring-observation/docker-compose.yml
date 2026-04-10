@@ -1,0 +1,131 @@
+services:
+
+  # ── Application ─────────────────────────────────────────────────────────────
+
+  # detector:
+  #   build: ./detector
+  #   # Webcam passthrough — comment out on macOS (use CAMERA_MODE=synthetic instead)
+  #   # devices:
+  #   #   - /dev/video0:/dev/video0
+  #   environment:
+  #     - OTEL_SERVICE_NAME=yolo-detector
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+  #     - ZENOH_ROUTER=zenoh-router:7447
+  #     - CAMERA_MODE=${CAMERA_MODE:-synthetic}
+  #   depends_on:
+  #     zenoh-router:
+  #       condition: service_started
+  #     otel-collector:
+  #       condition: service_started
+  #   restart: unless-stopped
+
+  zenoh-router:
+    image: eclipse/zenoh:latest
+    ports:
+      - "7447:7447"
+    restart: unless-stopped
+
+  app:
+    build: ./app
+    ports:
+      - "8000:8000"
+    environment:
+      - OTEL_SERVICE_NAME=fastapi-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - DATABASE_URL=postgresql://admin:secret@postgres:5432/litter_db
+      - ZENOH_ROUTER=zenoh-router:7447
+    depends_on:
+      otel-collector:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+      zenoh-router:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: litter_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d litter_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Telemetry pipeline ───────────────────────────────────────────────────────
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.100.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC (used by app services)
+      - "4318:4318"   # OTLP HTTP
+      - "8889:8889"   # Prometheus metrics scrape endpoint
+    depends_on:
+      - jaeger
+      - loki
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # Jaeger UI
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --enable-feature=remote-write-receiver
+      - --storage.tsdb.retention.time=1h
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "3000:3000"
+    depends_on:
+      - jaeger
+      - loki
+      - prometheus
+    restart: unless-stopped
+
+  
+  # Docker daemon exposes native Prometheus metrics at host.docker.internal:9323.
+  # Enable it once in Docker Desktop → Settings → Docker Engine:
+  #   "metrics-addr": "0.0.0.0:9323"
+
+volumes:
+  postgres-data:

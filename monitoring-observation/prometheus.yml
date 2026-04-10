@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otel-collector:8889"]
+  
+  # Requires "metrics-addr": "0.0.0.0:9323" in Docker Desktop → Docker Engine settings
+  - job_name: docker
+    static_configs:
+      - targets: ["host.docker.internal:9323"]
+
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+    metrics_path: /metrics

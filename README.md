@@ -11,4 +11,5 @@ If something does not work:
 
 Chapters: 
 
+- [Experiment Tracking](experiment-tracking/README.md)
 - [Monitoring and Observation](monitoring-observation/README.md)

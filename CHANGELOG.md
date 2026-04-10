@@ -10,3 +10,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Observation and Monitoring demo
+- Experiment Tracking notebook with mlflow integration

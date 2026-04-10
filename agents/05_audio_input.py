@@ -21,6 +21,7 @@ The agent's text reply is also spoken back via the macOS `say` command.
 
 import asyncio
 import io
+import platform
 import subprocess
 import sys
 
@@ -92,13 +93,24 @@ def record_audio(duration: int = 5, samplerate: int = 16_000) -> bytes:
 #%% [markdown]
 # ## Audio Output
 #
-# macOS ships with the `say` command-line tool which converts text to speech
-# using the system's built-in voices — no extra dependency required.
-# `subprocess.run` blocks until the speech is finished.
+# Text-to-speech is handled natively on both platforms:
+# - macOS: the built-in `say` command-line tool
+# - Windows: PowerShell's `Add-Type` with the `SAPI.SpVoice` COM object
+# No extra dependency is required on either OS.
 
 def speak(text: str) -> None:
-    """Speak text aloud using the macOS `say` command."""
-    subprocess.run(["say", text], check=True)
+    """Speak text aloud using the OS's built-in TTS engine."""
+    if platform.system() == "Windows":
+        # Use the Windows Speech API via PowerShell — no extra dependency needed
+        safe = text.replace("'", "''")   # escape single quotes for PowerShell
+        script = (
+            "Add-Type -AssemblyName System.Speech; "
+            f"(New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('{safe}')"
+        )
+        subprocess.run(["powershell", "-Command", script], check=True)
+    else:
+        # macOS (and Linux with `say` installed)
+        subprocess.run(["say", text], check=True)
 
 #%% [markdown]
 # ## Main Function

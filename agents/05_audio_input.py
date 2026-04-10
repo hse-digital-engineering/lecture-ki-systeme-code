@@ -1,15 +1,18 @@
 '''
 A PydanticAI agent that records audio from the local microphone,
 transcribes and responds to it — powered by Ollama + Gemma 4.
+The agent's text reply is also spoken back via the macOS `say` command.
 '''
 #%% [markdown]
-# # Version 5: Audio Input Agent
+# # Version 5: Audio Input + Output Agent
 #
-# This script demonstrates how to pass audio data to a PydanticAI agent:
+# This script demonstrates how to pass audio data to a PydanticAI agent
+# and speak the response back to the user:
 #
 # - **Model**: Gemma 4 (local edge model) via Ollama (OpenAI-compatible API)
 # - **Input**: Raw audio recorded from the laptop microphone
 # - **Transport**: `BinaryContent` wraps WAV bytes — same mechanism as images
+# - **Output**: Agent's text reply is spoken aloud via the macOS `say` command
 # - **Monitoring**: MLflow autolog traces every run
 # - **Task**: Listen to the user's voice and respond
 
@@ -18,6 +21,7 @@ transcribes and responds to it — powered by Ollama + Gemma 4.
 
 import asyncio
 import io
+import subprocess
 import sys
 
 import numpy as np
@@ -86,11 +90,23 @@ def record_audio(duration: int = 5, samplerate: int = 16_000) -> bytes:
     return buf.getvalue()
 
 #%% [markdown]
+# ## Audio Output
+#
+# macOS ships with the `say` command-line tool which converts text to speech
+# using the system's built-in voices — no extra dependency required.
+# `subprocess.run` blocks until the speech is finished.
+
+def speak(text: str) -> None:
+    """Speak text aloud using the macOS `say` command."""
+    subprocess.run(["say", text], check=True)
+
+#%% [markdown]
 # ## Main Function
 #
 # `BinaryContent` wraps the raw WAV bytes with the correct MIME type so the
 # model receives the audio alongside the text instruction — exactly the same
 # pattern used for images in the earlier examples.
+# After printing the reply, `speak()` reads it back to the user.
 
 async def main(duration: int = 5) -> None:
     wav_bytes = record_audio(duration)
@@ -104,6 +120,7 @@ async def main(duration: int = 5) -> None:
 
     print("\n" + "=" * 50)
     print(result.output)
+    speak(result.output)
 
 
 #%% [markdown]

@@ -293,9 +293,14 @@ def main():
                 session.put(
                     "litter/detections",
                     json.dumps(result).encode(),
+                    encoding=zenoh.Encoding.APPLICATION_JSON,
                 )
                 # Publish the raw JPEG frame so the dashboard can display it
-                session.put("litter/frame", frame_bytes)
+                session.put(
+                    "litter/frame",
+                    frame_bytes,
+                    encoding=zenoh.Encoding.IMAGE_JPEG
+                )
 
                 overal_latency = time.perf_counter() - overall_t0
                 detection_latency.record(overal_latency)
